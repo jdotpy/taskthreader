@@ -18,8 +18,9 @@ This package provides a way to run different tasks in parallel using threads and
 ## Usage
 
 	>>> from taskthreader import WorkGroup
+	>>> import time
 	>>>
-    >>> def example_task(result, wait_time=work_time):
+    >>> def example_task(result, wait_time=.1):
     >>>     time.sleep(wait_time)
     >>>     return result
 	>>>
@@ -28,6 +29,7 @@ This package provides a way to run different tasks in parallel using threads and
     >>> work_group.add_task('bar', task, 2)
     >>> work_group.add_task('zip', task, 3)
 	>>>
+	>>> results = work_group.run()
 	>>> results
 	{"foo": 1, "bar": 2, "zip": 3}
 
