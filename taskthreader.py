@@ -3,12 +3,19 @@ import time
 
 class Worker(threading.Thread):
     def __init__(self, *args, **kwargs):
-        self.target = kwargs['target']
-        self.args = kwargs['args']
-        self.kwargs = kwargs['kwargs']
+        self.target = kwargs.pop('target', None)
+        self.args = kwargs.pop('args', [])
+        if self.args is None:
+            self.args = []
+        self.kwargs = kwargs.pop('kwargs', {})
+        if self.kwargs is None:
+            self.kwargs = {}
         super(Worker, self).__init__(*args, **kwargs)
 
     def run(self):
+        if not self.target:
+            self.result = None
+            return None
         try:
             self.result = self.target(*self.args, **self.kwargs)
         except Exception as e:
@@ -17,24 +24,30 @@ class Worker(threading.Thread):
 class WorkGroup():
     def __init__(self, max_threads=5, tasks=None):
         self.max_threads = max_threads
+        self.tasks = self._parse_tasks(tasks)
 
-        self.tasks = {}
-        tasks = tasks or {}
-        for name, task in tasks.items():
+    def _parse_tasks(self, mapping=None):
+        tasks = {}
+        mapping = mapping or {}
+        for name, task in mapping.items():
             args = (name,) + task
-            self._add_task(*args)
+            self._add_task(tasks, *args)
+        return tasks
 
     def add_task(self, name, func, *args, **kwargs):
         """ This method just wraps the internal one collapsing the args and kwargs """
-        self._add_task(name, func, args, kwargs)
+        self._add_task(self.tasks, name, func, args, kwargs)
 
-    def _add_task(self, name, func, args=None, kwargs=None):
-        self.tasks[name] = (func, args, kwargs)
+    def _add_task(self, tasks, name, func, args=None, kwargs=None):
+        tasks[name] = (func, args, kwargs)
 
     def run(self, tasks=None):
         start_time = time.time()
         results = {}
-        tasks = tasks or self.tasks
+        if tasks:
+            tasks = self._parse_tasks(tasks)
+        else:
+            tasks = self.tasks
 
         task_queue = [(task_name, ) + task for task_name, task in tasks.items()]
 
