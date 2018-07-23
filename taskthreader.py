@@ -87,4 +87,6 @@ class WorkGroup():
             watched.join()
         end_time = time.time()
         self.last_run_time = end_time - start_time
-        return results
+
+        success = all([not isinstance(v, BaseException) for v in results.values()])
+        return success, results

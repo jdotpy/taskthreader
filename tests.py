@@ -3,7 +3,9 @@ import time
 
 from taskthreader import WorkGroup
 
-def example_task(result=None, wait_time=.1):
+def example_task(result=None, wait_time=.1, exc=None):
+    if exc:
+        raise exc()
     time.sleep(wait_time)
     return result
 
@@ -19,7 +21,8 @@ class WorkGroupTest(unittest.TestCase):
         work_group.add_task('foo', example_task, 1, wait_time=self.work_time)
         work_group.add_task('bar', example_task, 2, wait_time=self.work_time)
         work_group.add_task('zip', example_task, 3, wait_time=self.work_time)
-        results = work_group.run()
+        success, results = work_group.run()
+        assert success
         self.assertEqual(results['foo'], 1)
         self.assertEqual(results['bar'], 2)
         self.assertEqual(results['zip'], 3)
@@ -27,7 +30,8 @@ class WorkGroupTest(unittest.TestCase):
     
         # Run again with threads set to one to run them in sequence
         work_group.max_threads = 1
-        results2 = work_group.run()
+        success2, results2 = work_group.run()
+        assert success2
         self.assertTrue(work_group.last_run_time >= self.work_time * 3)
 
     def test_params(self):
@@ -38,12 +42,23 @@ class WorkGroupTest(unittest.TestCase):
             'zip': (example_task,)
         }
         work_group = WorkGroup(tasks=tasks)
-        results = work_group.run()
+        success, results = work_group.run()
+        assert success
         self.assertEqual(results['foo'], 1)
         self.assertEqual(results['bar'], 2)
         self.assertEqual(results['zip'], None)
 
         work_group = WorkGroup()
-        results = work_group.run(tasks=tasks)
+        success, results = work_group.run(tasks=tasks)
+        assert success
         self.assertEqual(results['foo'], 1)
         self.assertEqual(results['bar'], 2)
+
+    def test_error(self):
+        work_group = WorkGroup()
+        work_group.add_task('foo', example_task, 1, wait_time=self.work_time)
+        work_group.add_task('err', example_task, exc=KeyError)
+        success, results = work_group.run()
+        assert not success
+        self.assertEqual(results['foo'], 1)
+        assert isinstance(results['err'], KeyError)
